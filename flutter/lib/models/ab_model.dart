@@ -971,6 +971,8 @@ abstract class BaseAb {
 
 class LegacyAb extends BaseAb {
   bool get emtpy => peers.isEmpty && tags.isEmpty;
+  // Modified in May 2026 for this fork: do not enforce upstream hosted
+  // address-book device license limits in the client.
   // licensedDevices is obtained from personal ab, shared ab restrict it in server
   var licensedDevices = 0;
 
@@ -996,7 +998,7 @@ class LegacyAb extends BaseAb {
 
   @override
   bool isFull() {
-    return licensedDevices > 0 && peers.length >= licensedDevices;
+    return false;
   }
 
   @override
@@ -1027,7 +1029,7 @@ class LegacyAb extends BaseAb {
           throw json['error'];
         } else if (json.containsKey('data')) {
           try {
-            licensedDevices = json['licensed_devices'];
+            licensedDevices = 0;
             // ignore: empty_catches
           } catch (e) {}
           final data = jsonDecode(json['data']);
@@ -1385,8 +1387,9 @@ class Ab extends BaseAb {
 
   @override
   bool isFull() {
-    return gFFI.abModel._maxPeerOneAb > 0 &&
-        peers.length >= gFFI.abModel._maxPeerOneAb;
+    // Modified in May 2026 for this fork: do not enforce upstream hosted
+    // address-book device license limits in the client.
+    return false;
   }
 
   @override

@@ -9,5 +9,6 @@ License: GNU Affero General Public License v3.0, see `LICENCE`.
 Modification date: May 2026.
 
 Changes are limited to the hosted web build, launch-time relay configuration,
-deployment workflow, and user-facing shell branding. Upstream copyright notices
-and license terms remain in effect.
+deployment workflow, user-facing shell branding, and removal of hosted
+client-side device/group license gates. Upstream copyright notices and license
+terms remain in effect.

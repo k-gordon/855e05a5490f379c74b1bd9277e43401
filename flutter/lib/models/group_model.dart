@@ -186,7 +186,12 @@ class GroupModel {
               json['error']
                   .toString()
                   .contains('ambiguous column name: status')) {
-            throw translate('upgrade_rustdesk_server_pro_to_{1.1.10}_tip');
+            // Modified in May 2026 for this fork: avoid surfacing upstream
+            // Server Pro upgrade gating when optional hosted user APIs are
+            // unavailable.
+            debugPrint(
+                'Hosted user API is unavailable; continuing without Pro gate warning.');
+            return false;
           } else {
             throw json['error'];
           }
