@@ -47,6 +47,7 @@ jobs:
           yarn build
           mkdir -p ../ogvjs-1.8.6
           cp -a node_modules/ogv/dist/. ../ogvjs-1.8.6/
+          cp node_modules/libopus.js/build/libopus.js ../libopus.js
 
       - name: Build Flutter web app
         working-directory: flutter
