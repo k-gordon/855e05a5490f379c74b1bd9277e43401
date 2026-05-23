@@ -45,6 +45,8 @@ jobs:
         run: |
           YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install
           yarn build
+          mkdir -p ../ogvjs-1.8.6
+          cp -a node_modules/ogv/dist/. ../ogvjs-1.8.6/
 
       - name: Build Flutter web app
         working-directory: flutter
@@ -57,6 +59,11 @@ jobs:
           mkdir -p image/web
           cp -a flutter/build/web/. image/web/
           cat > image/default.conf <<'EOF'
+          map $http_upgrade $connection_upgrade {
+              default upgrade;
+              '' close;
+          }
+
           server {
               listen 80;
               server_name _;
@@ -68,6 +75,29 @@ jobs:
 
               location = / {
                   return 302 /web/;
+              }
+
+              location ~* ^/web/.+\.(js|mjs|wasm|json|png|svg|ico|css|map|txt)$ {
+                  root /usr/share/nginx/html;
+                  try_files $uri =404;
+              }
+
+              location /ws/hbbs {
+                  proxy_pass http://rustdesk-hbbs:21118/;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection $connection_upgrade;
+                  proxy_set_header Host $host;
+                  proxy_read_timeout 3600s;
+              }
+
+              location /ws/hbbr {
+                  proxy_pass http://rustdesk-hbbr:21119/;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection $connection_upgrade;
+                  proxy_set_header Host $host;
+                  proxy_read_timeout 3600s;
               }
 
               location /web/ {

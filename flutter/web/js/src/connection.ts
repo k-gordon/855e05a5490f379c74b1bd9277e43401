@@ -14,7 +14,7 @@ const HOSTS = [
   "rs-us.rustdesk.com",
 ];
 let HOST = localStorage.getItem("rendezvous-server") || HOSTS[0];
-const SCHEMA = "ws://";
+const SCHEMA = window.location.protocol === "https:" ? "wss://" : "ws://";
 
 type MsgboxCallback = (type: string, title: string, text: string, link: string) => void;
 type DrawCallback = (display: number, data: Uint8Array) => void;
@@ -1017,7 +1017,9 @@ function testDelay() {
   });
 }
 
-testDelay();
+if (!localStorage.getItem("custom-rendezvous-server")) {
+  testDelay();
+}
 
 function getDefaultUri(isRelay: Boolean = false): string {
   const host = localStorage.getItem("custom-rendezvous-server");
@@ -1029,6 +1031,9 @@ function getrUriFromRs(
   isRelay: Boolean = false,
   roffset: number = 0
 ): string {
+  if (shouldUseSameOriginWebSocket(uri)) {
+    return `${SCHEMA}${window.location.host}${isRelay ? "/ws/hbbr" : "/ws/hbbs"}`;
+  }
   if (uri.indexOf(":") > 0) {
     const tmp = uri.split(":");
     const port = parseInt(tmp[1]);
@@ -1037,6 +1042,12 @@ function getrUriFromRs(
     uri += ":" + (PORT + (isRelay ? 3 : 2));
   }
   return SCHEMA + uri;
+}
+
+function shouldUseSameOriginWebSocket(uri: string): boolean {
+  if (window.location.protocol !== "https:") return false;
+  const host = uri.replace(/^wss?:\/\//, "").split("/")[0].split(":")[0];
+  return host === window.location.hostname;
 }
 
 function hash(datas: (string | Uint8Array)[]): Uint8Array {

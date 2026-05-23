@@ -80,6 +80,10 @@
       animation: spin 2s linear infinite;
     }
 
+    body.remote-web-ready .loading {
+      display: none;
+    }
+
     @-webkit-keyframes spin {
       0% {
         -webkit-transform: rotate(0deg);
@@ -127,8 +131,10 @@
 
       try {
         const params = new URLSearchParams(window.location.search);
+        const pending = parseConnectHash();
+        const hashParams = pending ? pending.params : new URLSearchParams();
         Object.entries(mappings).forEach(([param, keys]) => {
-          const value = params.get(param);
+          const value = params.get(param) || hashParams.get(param);
           if (!value) return;
           keys.forEach((key) => localStorage.setItem(key, value));
         });
@@ -148,6 +154,12 @@
         if (!id) return null;
 
         return { id, params: new URLSearchParams(queryPart) };
+      }
+
+      function hideLoadingIndicator() {
+        document.body.classList.add("remote-web-ready");
+        const loading = document.querySelector(".loading");
+        if (loading) loading.remove();
       }
 
       function startPendingConnect(retries) {
@@ -173,6 +185,14 @@
         window.setByName("connect", pending.id);
       }
 
+      window.addEventListener("flutter-first-frame", hideLoadingIndicator, { once: true });
+      const readyObserver = new MutationObserver(() => {
+        if (document.querySelector("flt-glass-pane, flutter-view")) {
+          hideLoadingIndicator();
+          readyObserver.disconnect();
+        }
+      });
+      readyObserver.observe(document.documentElement, { childList: true, subtree: true });
       window.addEventListener("load", () => startPendingConnect(80));
     })();
   </script>
