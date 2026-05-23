@@ -67,6 +67,7 @@ jobs:
           server {
               listen 80;
               server_name _;
+              resolver 127.0.0.11 valid=10s ipv6=off;
 
               add_header Cross-Origin-Embedder-Policy require-corp always;
               add_header Cross-Origin-Opener-Policy same-origin always;
@@ -83,7 +84,8 @@ jobs:
               }
 
               location /ws/hbbs {
-                  proxy_pass http://rustdesk-hbbs:21118/;
+                  set $hbbs_upstream rustdesk-hbbs:21118;
+                  proxy_pass http://$hbbs_upstream/;
                   proxy_http_version 1.1;
                   proxy_set_header Upgrade $http_upgrade;
                   proxy_set_header Connection $connection_upgrade;
@@ -92,7 +94,8 @@ jobs:
               }
 
               location /ws/hbbr {
-                  proxy_pass http://rustdesk-hbbr:21119/;
+                  set $hbbr_upstream rustdesk-hbbr:21119;
+                  proxy_pass http://$hbbr_upstream/;
                   proxy_http_version 1.1;
                   proxy_set_header Upgrade $http_upgrade;
                   proxy_set_header Connection $connection_upgrade;
