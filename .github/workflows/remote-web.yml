@@ -1,4 +1,4 @@
-name: Build Archform RustDesk Web
+name: Build Remote Web
 
 on:
   workflow_dispatch:
@@ -40,7 +40,7 @@ jobs:
           corepack enable
           corepack prepare yarn@3.2.4 --activate
 
-      - name: Build RustDesk web bridge
+      - name: Build web bridge
         working-directory: flutter/web/js
         run: |
           YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install
@@ -64,7 +64,7 @@ jobs:
               add_header Cross-Origin-Embedder-Policy require-corp always;
               add_header Cross-Origin-Opener-Policy same-origin always;
               add_header Cross-Origin-Resource-Policy same-origin always;
-              add_header Content-Security-Policy "frame-ancestors 'self' https://fleet.archform.com http://localhost:5173 http://localhost:3000" always;
+              add_header Content-Security-Policy "frame-ancestors 'self' https: http://localhost:5173 http://localhost:3000" always;
 
               location = / {
                   return 302 /web/;
