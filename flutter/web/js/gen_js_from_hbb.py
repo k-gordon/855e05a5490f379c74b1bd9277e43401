@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# Modified in May 2026 for the Remote Web build.
+# This file remains licensed under the GNU AGPL v3. See repository LICENCE.
+
 import re
 import os
 import glob
