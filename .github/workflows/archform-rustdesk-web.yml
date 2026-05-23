@@ -43,7 +43,7 @@ jobs:
       - name: Build RustDesk web bridge
         working-directory: flutter/web/js
         run: |
-          yarn install
+          YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install
           yarn build
 
       - name: Build Flutter web app
