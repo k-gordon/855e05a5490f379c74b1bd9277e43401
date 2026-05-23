@@ -42,7 +42,7 @@ jobs:
       - name: Build RustDesk web bridge
         working-directory: flutter/web/js
         run: |
-          yarn install --frozen-lockfile
+          yarn install --ignore-engines
           yarn build
 
       - name: Build Flutter web app
