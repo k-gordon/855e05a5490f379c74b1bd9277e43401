@@ -17,6 +17,8 @@ cert.pfx
 *png
 *svg
 *jpg
+!flutter/web/**/*.png
+!flutter/web/**/*.svg
 sciter.dll
 **pdb
 src/bridge_generated.rs
@@ -55,4 +57,3 @@ examples/**/target/
 vcpkg_installed
 flutter/lib/generated_plugin_registrant.dart
 libsciter.dylib
-flutter/web/
