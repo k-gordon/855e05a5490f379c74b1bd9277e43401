@@ -34,6 +34,60 @@
 
   <title>Remote Web</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    (function remoteWebEarlyConfig() {
+      const sourceUrl = "https://github.com/k-gordon/855e05a5490f379c74b1bd9277e43401";
+      const mappings = {
+        host: ["custom-rendezvous-server", "wc-custom-rendezvous-server"],
+        relay: ["relay-server", "wc-relay-server"],
+        api: ["api-server", "wc-api-server"],
+        key: ["key", "wc-key"],
+      };
+
+      window.__remoteWebAgplSourceUrl = sourceUrl;
+
+      function parseConnectHash() {
+        const raw = window.location.hash || "";
+        let payload = "";
+        if (raw.startsWith("#connect:/")) {
+          payload = raw.slice("#connect:/".length);
+        } else if (raw.startsWith("#connect/")) {
+          payload = raw.slice("#connect/".length);
+        } else {
+          return null;
+        }
+
+        const queryIndex = payload.indexOf("?");
+        const idPart = queryIndex >= 0 ? payload.slice(0, queryIndex) : payload;
+        const queryPart = queryIndex >= 0 ? payload.slice(queryIndex + 1) : "";
+        const id = decodeURIComponent(idPart || "").replace(/\/r$/, "");
+        if (!id) return null;
+
+        return { id, params: new URLSearchParams(queryPart), payload };
+      }
+
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const pending = parseConnectHash();
+        const hashParams = pending ? pending.params : new URLSearchParams();
+        Object.entries(mappings).forEach(([param, keys]) => {
+          const value = params.get(param) || hashParams.get(param);
+          if (!value) return;
+          keys.forEach((key) => localStorage.setItem(key, value));
+        });
+
+        if (pending && window.location.hash.startsWith("#connect:/")) {
+          window.history.replaceState(
+            null,
+            "",
+            window.location.pathname + window.location.search + "#connect/" + pending.payload
+          );
+        }
+      } catch (error) {
+        console.warn("Remote Web config bootstrap failed", error);
+      }
+    })();
+  </script>
   <script src="ogvjs-1.8.6/ogv.js"></script>
   <script type="module" crossorigin src="js/dist/index.js"></script>
   <link rel="modulepreload" href="js/dist/vendor.js">
@@ -119,81 +173,13 @@
   </div>
   <script>
     (function remoteWebBootstrap() {
-      const sourceUrl = "https://github.com/k-gordon/855e05a5490f379c74b1bd9277e43401";
-      const mappings = {
-        host: ["custom-rendezvous-server", "wc-custom-rendezvous-server"],
-        relay: ["relay-server", "wc-relay-server"],
-        api: ["api-server", "wc-api-server"],
-        key: ["key", "wc-key"],
-      };
-
-      window.__remoteWebAgplSourceUrl = sourceUrl;
-
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const pending = parseConnectHash();
-        const hashParams = pending ? pending.params : new URLSearchParams();
-        Object.entries(mappings).forEach(([param, keys]) => {
-          const value = params.get(param) || hashParams.get(param);
-          if (!value) return;
-          keys.forEach((key) => localStorage.setItem(key, value));
-        });
-      } catch (error) {
-        console.warn("Remote Web config bootstrap failed", error);
-      }
-
-      function parseConnectHash() {
-        const raw = window.location.hash || "";
-        if (!raw.startsWith("#connect:/")) return null;
-
-        const payload = raw.slice("#connect:/".length);
-        const queryIndex = payload.indexOf("?");
-        const idPart = queryIndex >= 0 ? payload.slice(0, queryIndex) : payload;
-        const queryPart = queryIndex >= 0 ? payload.slice(queryIndex + 1) : "";
-        const id = decodeURIComponent(idPart || "").replace(/\/r$/, "");
-        if (!id) return null;
-
-        return { id, params: new URLSearchParams(queryPart) };
-      }
-
       function hideLoadingIndicator() {
         document.body.classList.add("remote-web-ready");
         const loading = document.querySelector(".loading");
         if (loading) loading.remove();
       }
 
-      function startPendingConnect(retries) {
-        const pending = parseConnectHash();
-        if (!pending) return;
-
-        if (typeof window.setByName !== "function") {
-          if (retries > 0) {
-            window.setTimeout(() => startPendingConnect(retries - 1), 250);
-          }
-          return;
-        }
-
-        const password = pending.params.get("password");
-        const key = pending.params.get("key");
-        if (key) localStorage.setItem("key", key);
-        if (password) {
-          window.setByName(
-            "option:peer",
-            JSON.stringify({ id: pending.id, name: "password", value: password })
-          );
-        }
-        window.setByName("connect", pending.id);
-      }
-
       window.addEventListener("flutter-first-frame", hideLoadingIndicator, { once: true });
-      const readyObserver = new MutationObserver(() => {
-        if (document.querySelector("flt-glass-pane, flutter-view")) {
-          hideLoadingIndicator();
-          readyObserver.disconnect();
-        }
-      });
-      readyObserver.observe(document.documentElement, { childList: true, subtree: true });
-      window.addEventListener("load", () => startPendingConnect(80));
     })();
   </script>
   <!-- This script installs service_worker.js to provide PWA functionality to
