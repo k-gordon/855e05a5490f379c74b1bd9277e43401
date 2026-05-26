@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'dart:ui' as ui;
@@ -346,7 +345,7 @@ class InputModel {
   /// which runs per-engine, so each isolate registers its own handler tied
   /// to its own set of InputModels.
   static void initSideButtonChannel() {
-    if (!Platform.isLinux) return;
+    if (!isLinux) return;
     if (_sideButtonChannelInitialized) return;
     _sideButtonChannelInitialized = true;
 
