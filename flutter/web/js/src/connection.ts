@@ -32,6 +32,7 @@ export default class Connection {
   _firstFrame: Boolean | undefined;
   _videoDecoder: any;
   _password: Uint8Array | undefined;
+  _plainPassword: string | undefined;
   _options: any;
   _videoTestSpeed: number[];
   //_cursors: { [name: number]: any };
@@ -61,14 +62,20 @@ export default class Connection {
     if (!this._options) {
       this._options = globals.getPeers()[id] || {};
     }
+    const plainPassword = this.getOption("plain-password") || this.getOption("plain_password");
+    if (typeof plainPassword === "string" && plainPassword.length > 0) {
+      this._plainPassword = plainPassword;
+    }
     if (!this._password) {
       const p = this.getOption("password");
-      if (p) {
+      if (typeof p === "string" && p.length > 0 && /^\s*\d+(\s*,\s*\d+)*\s*$/.test(p)) {
         try {
           this._password = Uint8Array.from(JSON.parse("[" + p + "]"));
         } catch (e) {
           console.error('Failed to get password, ' + e);
         }
+      } else if (typeof p === "string" && p.length > 0) {
+        this._plainPassword = p;
       }
     }
     this._interval = setInterval(() => {
@@ -238,9 +245,15 @@ export default class Connection {
       const msg = (await this._ws?.next()) as message.Message;
       if (msg?.hash) {
         this._hash = msg?.hash;
-        if (!this._password)
-          this.msgbox("input-password", "Password Required", "");
-        this.login();
+        if (this._plainPassword) {
+          const password = this._plainPassword;
+          this._plainPassword = undefined;
+          this.login({ password });
+        } else {
+          if (!this._password)
+            this.msgbox("input-password", "Password Required", "");
+          this.login();
+        }
       } else if (msg?.test_delay) {
         const test_delay = msg?.test_delay;
         console.log('test delay: ', test_delay);
@@ -431,9 +444,17 @@ export default class Connection {
     this._draw = callback;
   }
 
+  setSessionOptions(options: any) {
+    this._options = options || {};
+    const plainPassword = this._options["plain-password"] || this._options["plain_password"];
+    if (typeof plainPassword === "string" && plainPassword.length > 0) {
+      this._plainPassword = plainPassword;
+    }
+  }
+
   login(info?: {
     os_login?: message.OSLogin,
-    password?: Uint8Array
+    password?: Uint8Array | string
   }) {
     if (info?.password) {
       const salt = this._hash?.salt;

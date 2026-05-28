@@ -705,8 +705,13 @@ export function queryOnlines(value) {
 function sessionAdd(value) {
   try {
     const data = JSON.parse(value);
+    if (typeof data.password === 'string' && data.password.length > 0) {
+      data['plain-password'] = data.password;
+      delete data.password;
+    }
     window.curConn?.close();
     const conn = new Connection();
+    conn.setSessionOptions(data);
     setConn(conn);
     return '';
   } catch (e) {
