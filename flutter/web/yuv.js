@@ -9,6 +9,17 @@ fetch('yuv.wasm').then(function (res) { return res.arrayBuffer(); })
 
 var yPtr, yPtrLen, uPtr, uPtrLen, vPtr, vPtrLen, outPtr, outPtrLen;
 let testSpeed = [0, 0];
+
+function bgrxToRgba(data) {
+  for (var i = 0; i < data.length; i += 4) {
+    var blue = data[i];
+    data[i] = data[i + 2];
+    data[i + 2] = blue;
+    data[i + 3] = 255;
+  }
+  return data;
+}
+
 function I420ToARGB(yb) {
   if (!wasmExports) return;
   var display = yb.display || 0;
@@ -49,7 +60,7 @@ function I420ToARGB(yb) {
   // var res = wasmExports.I420ToARGB(yPtr, yb.y.stride, uPtr, yb.u.stride, vPtr, yb.v.stride, outPtr, w * 4, w, h);
   // var res = wasmExports.AVX_YUV_to_ARGB(outPtr, yPtr, yb.y.stride, uPtr, yb.u.stride, vPtr, yb.v.stride, w, h);
   var res = wasmExports.yuv420_rgb24_std(w, h, yPtr, uPtr, vPtr, yb.y.stride, yb.v.stride, outPtr, w * 4, 1);
-  var out = HEAPU8.slice(outPtr, outPtr + n);
+  var out = bgrxToRgba(HEAPU8.slice(outPtr, outPtr + n));
   testSpeed[1] += new Date().getTime() - tm0;
   testSpeed[0] += 1;
   if (testSpeed[0] > 30) {
