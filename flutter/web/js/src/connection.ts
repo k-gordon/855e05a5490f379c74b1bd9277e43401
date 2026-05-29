@@ -556,15 +556,16 @@ export default class Connection {
     this._ws?.sendMessage({ misc });
   }
 
-  videoFrameData(data: any): ArrayBuffer | Uint8Array {
+  videoFrameData(data: any): ArrayBuffer {
     if (data instanceof ArrayBuffer) {
-      return data;
+      return data.slice(0);
     }
     if (ArrayBuffer.isView(data)) {
-      return data as Uint8Array;
+      const view = data as { buffer: ArrayBuffer; byteOffset: number; byteLength: number };
+      return view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength);
     }
     if (Array.isArray(data)) {
-      return Uint8Array.from(data);
+      return Uint8Array.from(data).buffer;
     }
     throw new Error(`Unsupported VP9 frame payload type: ${typeof data}`);
   }
