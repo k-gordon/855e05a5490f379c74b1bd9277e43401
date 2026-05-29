@@ -556,6 +556,19 @@ export default class Connection {
     this._ws?.sendMessage({ misc });
   }
 
+  videoFrameData(data: any): ArrayBuffer | Uint8Array {
+    if (data instanceof ArrayBuffer) {
+      return data;
+    }
+    if (ArrayBuffer.isView(data)) {
+      return data as Uint8Array;
+    }
+    if (Array.isArray(data)) {
+      return Uint8Array.from(data);
+    }
+    throw new Error(`Unsupported VP9 frame payload type: ${typeof data}`);
+  }
+
   getVideoFrameFormat(vf: message.VideoFrame): string {
     if (vf.vp9s) return "VP9";
     if (vf.vp8s) return "VP8";
@@ -598,7 +611,7 @@ export default class Connection {
       }
       vf.vp9s.frames.forEach((f) => {
         try {
-          dec.processFrame(f.data.slice(0).buffer, (ok: any) => {
+          dec.processFrame(this.videoFrameData(f.data), (ok: any) => {
             i++;
             if (i == n) this.sendVideoReceived();
             if (ok && dec.frameBuffer && n == i) {

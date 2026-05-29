@@ -2162,7 +2162,7 @@ Future<bool> initUniLinks() async {
   // check cold boot
   try {
     final initialLink = await getInitialLink();
-    print("initialLink: $initialLink");
+    print("initialLink: ${redactSensitiveUriForLog(initialLink)}");
     if (initialLink == null || initialLink.isEmpty) {
       return false;
     }
@@ -2176,6 +2176,15 @@ Future<bool> initUniLinks() async {
     debugPrintStack(label: "$err");
     return false;
   }
+}
+
+String redactSensitiveUriForLog(String? value) {
+  if (value == null || value.isEmpty) {
+    return "";
+  }
+  final sensitive = RegExp(r"([?&#](?:key|password|token)=)[^&#]*",
+      caseSensitive: false);
+  return value.replaceAllMapped(sensitive, (match) => "${match[1]}<redacted>");
 }
 
 /// Listen for uni links.
