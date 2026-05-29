@@ -65,6 +65,10 @@ let gl;
 let pixels;
 let flipPixels;
 let oldSize;
+let videoSurface;
+let videoSurfaceCtx;
+let videoSurfaceWidth = 0;
+let videoSurfaceHeight = 0;
 if (YUVCanvas.WebGLFrameSink.isAvailable()) {
   var canvas = document.createElement('canvas');
   yuvCanvas = YUVCanvas.attach(canvas, { webGL: true });
@@ -73,6 +77,73 @@ if (YUVCanvas.WebGLFrameSink.isAvailable()) {
   yuvWorker = new Worker("./yuv.js");
 }
 let testSpeed = [0, 0];
+
+function resizeVideoSurface() {
+  if (!videoSurface || !videoSurfaceWidth || !videoSurfaceHeight) return;
+  const scale = Math.min(
+    window.innerWidth / videoSurfaceWidth,
+    window.innerHeight / videoSurfaceHeight
+  );
+  videoSurface.style.width = `${Math.round(videoSurfaceWidth * scale)}px`;
+  videoSurface.style.height = `${Math.round(videoSurfaceHeight * scale)}px`;
+}
+
+function applyVideoSurfaceBlend() {
+  const flutterView = document.querySelector('flutter-view');
+  if (flutterView) {
+    flutterView.style.position = 'fixed';
+    flutterView.style.inset = '0';
+    flutterView.style.zIndex = '1';
+    flutterView.style.background = 'transparent';
+    flutterView.style.mixBlendMode = 'screen';
+  }
+  document
+    .querySelectorAll('flt-glass-pane, flt-scene-host, canvas')
+    .forEach((el) => {
+      if (el.id !== 'rustdesk-video-surface') {
+        el.style.mixBlendMode = 'screen';
+      }
+    });
+}
+
+function ensureVideoSurface(width, height) {
+  if (!videoSurface) {
+    videoSurface = document.createElement('canvas');
+    videoSurface.id = 'rustdesk-video-surface';
+    videoSurface.style.cssText = [
+      'position: fixed',
+      'inset: 0',
+      'margin: auto',
+      'z-index: 0',
+      'pointer-events: none',
+      'background: #000',
+      'max-width: 100vw',
+      'max-height: 100vh',
+    ].join(';');
+    document.body.prepend(videoSurface);
+    document.documentElement.style.background = '#000';
+    document.body.style.background = '#000';
+    videoSurfaceCtx = videoSurface.getContext('2d');
+    window.addEventListener('resize', resizeVideoSurface);
+  }
+  if (videoSurfaceWidth !== width || videoSurfaceHeight !== height) {
+    videoSurfaceWidth = width;
+    videoSurfaceHeight = height;
+    videoSurface.width = width;
+    videoSurface.height = height;
+    videoSurface.style.aspectRatio = `${width}/${height}`;
+    resizeVideoSurface();
+  }
+  applyVideoSurfaceBlend();
+  return videoSurfaceCtx;
+}
+
+function drawVideoSurface(width, height, rgba) {
+  const ctx = ensureVideoSurface(width, height);
+  if (!ctx || rgba.length !== width * height * 4) return;
+  const clamped = new Uint8ClampedArray(rgba.buffer, rgba.byteOffset, rgba.byteLength);
+  ctx.putImageData(new ImageData(clamped, width, height), 0, 0);
+}
 
 export function draw(display, frame) {
   if (yuvWorker) {
@@ -95,6 +166,7 @@ export function draw(display, frame) {
     for (let i = 0; i < size; i += row) {
       flipPixels.set(pixels.subarray(i, i + row), end - i);
     }
+    drawVideoSurface(width, height, flipPixels);
     onRgba(display, flipPixels);
     testSpeed[1] += new Date().getTime() - tm0;
     testSpeed[0] += 1;
@@ -476,6 +548,13 @@ export function playAudio(packet) {
   opusWorker.postMessage(packet, [packet.buffer]);
 }
 
+function pcmPayload(data) {
+  if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) return data;
+  if (data?.data instanceof ArrayBuffer || ArrayBuffer.isView(data?.data)) return data.data;
+  if (Array.isArray(data)) return Uint8Array.from(data);
+  return undefined;
+}
+
 window.init = async () => {
   if (yuvWorker) {
     yuvWorker.onmessage = (e) => {
@@ -483,7 +562,13 @@ window.init = async () => {
     }
   }
   opusWorker.onmessage = (e) => {
-    pcmPlayer.feed(e.data);
+    const payload = pcmPayload(e.data);
+    if (!pcmPlayer || !payload) return;
+    try {
+      pcmPlayer.feed(payload);
+    } catch (err) {
+      console.warn('Failed to play RustDesk audio frame', err);
+    }
   }
   loadVp9(() => { });
   await initZstd();
