@@ -11,6 +11,8 @@ var yPtr, yPtrLen, uPtr, uPtrLen, vPtr, vPtrLen, outPtr, outPtrLen;
 let testSpeed = [0, 0];
 function I420ToARGB(yb) {
   if (!wasmExports) return;
+  var display = yb.display || 0;
+  yb = yb.frame || yb;
   var tm0 = new Date().getTime();
   var { malloc, free, memory } = wasmExports;
   var HEAPU8 = new Uint8Array(memory.buffer);
@@ -54,7 +56,7 @@ function I420ToARGB(yb) {
     console.log('yuv: ' + parseInt('' + testSpeed[1] / testSpeed[0]));
     testSpeed = [0, 0];
   }
-  return out;
+  return { display, width: w, height: h, rgba: out };
 }
 
 var currentFrame;
@@ -64,7 +66,8 @@ self.addEventListener('message', (e) => {
 
 function run() {
   if (currentFrame) {
-    self.postMessage(I420ToARGB(currentFrame));
+    var result = I420ToARGB(currentFrame);
+    if (result) self.postMessage(result);
     currentFrame = undefined;
   }
   setTimeout(run, 1);

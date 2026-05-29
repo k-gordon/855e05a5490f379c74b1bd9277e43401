@@ -138,9 +138,19 @@ function ensureVideoSurface(width, height) {
   return videoSurfaceCtx;
 }
 
+function rgbaBytes(data) {
+  if (data instanceof Uint8Array) return data;
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  if (ArrayBuffer.isView(data)) {
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  }
+  return undefined;
+}
+
 function drawVideoSurface(width, height, rgba) {
   const ctx = ensureVideoSurface(width, height);
-  if (!ctx || rgba.length !== width * height * 4) return;
+  rgba = rgbaBytes(rgba);
+  if (!ctx || !rgba || rgba.length !== width * height * 4) return;
   const clamped = new Uint8ClampedArray(rgba.buffer, rgba.byteOffset, rgba.byteLength);
   ctx.putImageData(new ImageData(clamped, width, height), 0, 0);
 }
@@ -558,16 +568,25 @@ function pcmPayload(data) {
 window.init = async () => {
   if (yuvWorker) {
     yuvWorker.onmessage = (e) => {
-      onRgba(e.data.display, e.data.frame);
+      const data = e.data || {};
+      const rgba = rgbaBytes(data.rgba ?? data.frame ?? data);
+      if (!rgba) return;
+      if (data.width && data.height) {
+        drawVideoSurface(data.width, data.height, rgba);
+      }
+      onRgba(data.display ?? 0, rgba);
     }
   }
   opusWorker.onmessage = (e) => {
     const payload = pcmPayload(e.data);
-    if (!pcmPlayer || !payload) return;
+    if (!pcmPlayer || !payload || payload.byteLength === 0) return;
     try {
       pcmPlayer.feed(payload);
     } catch (err) {
-      console.warn('Failed to play RustDesk audio frame', err);
+      if (!pcmPlayer._rustdeskWarned) {
+        pcmPlayer._rustdeskWarned = true;
+        console.warn('Failed to play RustDesk audio frame', err);
+      }
     }
   }
   loadVp9(() => { });
