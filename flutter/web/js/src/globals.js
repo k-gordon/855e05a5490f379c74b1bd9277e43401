@@ -607,7 +607,7 @@ export function getUserDefaultOption(value) {
     'view_style': 'original',
     'scroll_style': 'scrollauto',
     'image_quality': 'balanced',
-    'codec-preference': 'auto',
+    'codec-preference': 'vp9',
     'custom_image_quality': '50',
     'custom-fps': '30',
   };
@@ -774,7 +774,7 @@ function increasePort(host, offset) {
 
 function getAlternativeCodecs() {
   return JSON.stringify({
-    vp8: true,
+    vp8: false,
     av1: false,
     h264: false,
     h265: false,

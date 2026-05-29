@@ -35,6 +35,8 @@ export default class Connection {
   _plainPassword: string | undefined;
   _options: any;
   _videoTestSpeed: number[];
+  _waitingForDecoderFrame: boolean;
+  _unsupportedVideoFormat: string | undefined;
   //_cursors: { [name: number]: any };
 
   constructor() {
@@ -43,6 +45,7 @@ export default class Connection {
     this._msgs = [];
     this._id = "";
     this._videoTestSpeed = [0, 0];
+    this._waitingForDecoderFrame = false;
     //this._cursors = {};
   }
 
@@ -474,14 +477,23 @@ export default class Connection {
     }
   }
 
-  changePreferCodec() {
-    const supported_decoding = message.SupportedDecoding.fromPartial({
+  getSupportedDecoding(): message.SupportedDecoding {
+    return message.SupportedDecoding.fromPartial({
       ability_vp9: 1,
-      ability_h264: 1,
+      ability_h264: 0,
+      ability_h265: 0,
+      ability_vp8: 0,
+      ability_av1: 0,
+      prefer: message.SupportedDecoding_PreferCodec.VP9,
     });
+  }
+
+  changePreferCodec() {
+    const supported_decoding = this.getSupportedDecoding();
     const option = message.OptionMessage.fromPartial({ supported_decoding });
     const misc = message.Misc.fromPartial({ option });
     this._ws?.sendMessage({ misc });
+    this.refresh();
   }
 
   async reconnect() {
@@ -510,6 +522,8 @@ export default class Connection {
     const msg = message.OptionMessage.fromPartial({});
     const q = this.getImageQualityEnum(this.getImageQuality(), true);
     const yes = message.OptionMessage_BoolOption.Yes;
+    msg.supported_decoding = this.getSupportedDecoding();
+    n += 1;
     if (q != undefined) {
       msg.image_quality = q;
       n += 1;
@@ -542,38 +556,80 @@ export default class Connection {
     this._ws?.sendMessage({ misc });
   }
 
-  handleVideoFrame(vf: message.VideoFrame) {
-    if (!this._firstFrame) {
-      this.msgbox("", "", "");
-      this._firstFrame = true;
+  getVideoFrameFormat(vf: message.VideoFrame): string {
+    if (vf.vp9s) return "VP9";
+    if (vf.vp8s) return "VP8";
+    if (vf.av1s) return "AV1";
+    if (vf.h264s) return "H264";
+    if (vf.h265s) return "H265";
+    if (vf.rgb) return "RGB";
+    if (vf.yuv) return "YUV";
+    return "unknown";
+  }
+
+  handleUnsupportedVideoFrame(format: string) {
+    if (this._unsupportedVideoFormat !== format) {
+      this._unsupportedVideoFormat = format;
+      console.warn(
+        `Unsupported RustDesk video frame ${format}; requesting VP9 stream`
+      );
     }
+    this.changePreferCodec();
+    this.sendVideoReceived();
+  }
+
+  handleVideoFrame(vf: message.VideoFrame) {
     if (vf.vp9s) {
       const dec = this._videoDecoder;
+      if (!dec) {
+        if (!this._waitingForDecoderFrame) {
+          console.warn("VP9 frame arrived before decoder was ready; refreshing after decoder load");
+        }
+        this._waitingForDecoderFrame = true;
+        this.sendVideoReceived();
+        return;
+      }
       var tm = new Date().getTime();
       var i = 0;
       const n = vf.vp9s?.frames.length;
+      if (!n) {
+        this.sendVideoReceived();
+        return;
+      }
       vf.vp9s.frames.forEach((f) => {
-        dec.processFrame(f.data.slice(0).buffer, (ok: any) => {
+        try {
+          dec.processFrame(f.data.slice(0).buffer, (ok: any) => {
+            i++;
+            if (i == n) this.sendVideoReceived();
+            if (ok && dec.frameBuffer && n == i) {
+              if (!this._firstFrame) {
+                this.msgbox("", "", "");
+                this._firstFrame = true;
+              }
+              this.draw(vf.display, dec.frameBuffer);
+              const now = new Date().getTime();
+              var elapsed = now - tm;
+              this._videoTestSpeed[1] += elapsed;
+              this._videoTestSpeed[0] += 1;
+              if (this._videoTestSpeed[0] >= 30) {
+                console.log(
+                  "video decoder: " +
+                  parseInt(
+                    "" + this._videoTestSpeed[1] / this._videoTestSpeed[0]
+                  )
+                );
+                this._videoTestSpeed = [0, 0];
+              }
+            }
+          });
+        } catch (e) {
+          console.error("Failed to decode VP9 frame", e);
           i++;
           if (i == n) this.sendVideoReceived();
-          if (ok && dec.frameBuffer && n == i) {
-            this.draw(vf.display, dec.frameBuffer);
-            const now = new Date().getTime();
-            var elapsed = now - tm;
-            this._videoTestSpeed[1] += elapsed;
-            this._videoTestSpeed[0] += 1;
-            if (this._videoTestSpeed[0] >= 30) {
-              console.log(
-                "video decoder: " +
-                parseInt(
-                  "" + this._videoTestSpeed[1] / this._videoTestSpeed[0]
-                )
-              );
-              this._videoTestSpeed = [0, 0];
-            }
-          }
-        });
+        }
       });
+    } else {
+      this.handleUnsupportedVideoFrame(this.getVideoFrameFormat(vf));
     }
   }
 
@@ -1020,6 +1076,10 @@ export default class Connection {
       this._videoDecoder = decoder;
       console.log("vp9 loaded");
       console.log('The decoder: ', decoder);
+      if (this._waitingForDecoderFrame) {
+        this._waitingForDecoderFrame = false;
+        this.changePreferCodec();
+      }
     });
   }
 }
