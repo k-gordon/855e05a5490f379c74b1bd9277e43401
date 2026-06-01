@@ -1,9 +1,6 @@
 name: playground
 
 on:
-  #schedule:
-    # schedule build every night
-  #  - cron: "0/6 * * * *"
   workflow_dispatch:
 
 env:
@@ -14,7 +11,7 @@ env:
   FLUTTER_RUST_BRIDGE_VERSION: "1.80.1"
   # for arm64 linux because official Dart SDK does not work
   FLUTTER_ELINUX_VERSION: "3.16.9"
-  TAG_NAME: "nightly"
+  TAG_NAME: "playground"
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
   VERSION: "1.4.6"
