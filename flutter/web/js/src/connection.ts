@@ -8,12 +8,7 @@ import * as consts from "./consts";
 import { decompress, mapKey, sleep } from "./common";
 
 export const PORT = 21116;
-const HOSTS = [
-  "rs-sg.rustdesk.com",
-  "rs-cn.rustdesk.com",
-  "rs-us.rustdesk.com",
-];
-let HOST = localStorage.getItem("rendezvous-server") || HOSTS[0];
+const HOST = localStorage.getItem("custom-rendezvous-server") || window.location.host;
 const SCHEMA = window.location.protocol === "https:" ? "wss://" : "ws://";
 
 type MsgboxCallback = (type: string, title: string, text: string, link: string) => void;
@@ -327,7 +322,7 @@ export default class Connection {
         msgtype: "error",
         title: "Login Error",
         text: "Login screen using Wayland is not supported",
-        link: "https://rustdesk.com/docs/en/manual/linux/#login-screen",
+        link: "",
         try_again: true,
       },
       [consts.LOGIN_MSG_DESKTOP_SESSION_NOT_READY]: {
@@ -355,14 +350,14 @@ export default class Connection {
         msgtype: "info-nocancel",
         title: "xorg_not_found_title_tip",
         text: "xorg_not_found_text_tip",
-        link: "https://rustdesk.com/docs/en/manual/linux/#login-screen",
+        link: "",
         try_again: true,
       },
       [consts.LOGIN_MSG_DESKTOP_NO_DESKTOP]: {
         msgtype: "info-nocancel",
         title: "no_desktop_title_tip",
         text: "no_desktop_text_tip",
-        link: "https://rustdesk.com/docs/en/manual/linux/#login-screen",
+        link: "",
         try_again: true,
       },
       [consts.LOGIN_MSG_DESKTOP_SESSION_NOT_READY_PASSWORD_EMPTY]: {
@@ -585,7 +580,7 @@ export default class Connection {
     if (this._unsupportedVideoFormat !== format) {
       this._unsupportedVideoFormat = format;
       console.warn(
-        `Unsupported RustDesk video frame ${format}; requesting VP9 stream`
+        `Unsupported remote video frame ${format}; requesting VP9 stream`
       );
     }
     this.changePreferCodec();
@@ -1098,24 +1093,6 @@ export default class Connection {
   }
 }
 
-function testDelay() {
-  var nearest = "";
-  HOSTS.forEach((host) => {
-    const now = new Date().getTime();
-    new Websock(getrUriFromRs(host), true).open().then(() => {
-      console.log("latency of " + host + ": " + (new Date().getTime() - now));
-      if (!nearest) {
-        HOST = host;
-        localStorage.setItem("rendezvous-server", host);
-      }
-    });
-  });
-}
-
-if (!localStorage.getItem("custom-rendezvous-server")) {
-  testDelay();
-}
-
 function getDefaultUri(isRelay: Boolean = false): string {
   const host = localStorage.getItem("custom-rendezvous-server");
   return getrUriFromRs(host || HOST, isRelay);
@@ -1140,7 +1117,6 @@ function getrUriFromRs(
 }
 
 function shouldUseSameOriginWebSocket(uri: string): boolean {
-  if (window.location.protocol !== "https:") return false;
   const host = uri.replace(/^wss?:\/\//, "").split("/")[0].split(":")[0];
   return host === window.location.hostname;
 }

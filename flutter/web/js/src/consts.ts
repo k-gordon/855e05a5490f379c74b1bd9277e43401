@@ -16,4 +16,4 @@ export const LOGIN_MSG_NO_PASSWORD_ACCESS = 'No Password Access';
 export const LOGIN_MSG_OFFLINE = 'Offline';
 export const LOGIN_SCREEN_WAYLAND = 'Wayland login screen is not supported';
 export const SCRAP_X11_REQUIRED = 'x11 expected';
-export const SCRAP_X11_REF_URL = 'https://rustdesk.com/docs/en/manual/linux/#x11-required';
+export const SCRAP_X11_REF_URL = '';

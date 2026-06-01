@@ -440,7 +440,7 @@ function _getByName(name, arg) {
     case 'api_server':
       return getApiServer();
     case 'is_using_public_server':
-      return !localStorage.getItem('custom-rendezvous-server');
+      return false;
     case 'get_version_number':
       return getVersionNumber(arg);
     case 'audit_server':
@@ -507,9 +507,9 @@ window.init = async () => {
     try {
       pcmPlayer.feed(payload);
     } catch (err) {
-      if (!pcmPlayer._rustdeskWarned) {
-        pcmPlayer._rustdeskWarned = true;
-        console.warn('Failed to play RustDesk audio frame', err);
+      if (!pcmPlayer._remoteWebWarned) {
+        pcmPlayer._remoteWebWarned = true;
+        console.warn('Failed to play remote audio frame', err);
       }
     }
   }
@@ -826,7 +826,7 @@ function getApiServer() {
       return `http://${s}`;
     }
   }
-  return 'https://admin.rustdesk.com';
+  return '';
 }
 
 function getAuditServer(typ) {
@@ -834,7 +834,7 @@ function getAuditServer(typ) {
     return '';
   }
   const api_server = getApiServer();
-  if (!api_server || api_server.includes('rustdesk.com')) {
+  if (!api_server) {
     return '';
   }
   return api_server + '/api/audit/' + typ;
