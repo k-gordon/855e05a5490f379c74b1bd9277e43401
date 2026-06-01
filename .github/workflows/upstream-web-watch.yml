@@ -1,0 +1,117 @@
+name: Watch Upstream Web Fixes
+
+on:
+  workflow_dispatch:
+    inputs:
+      fail_on_findings:
+        description: Fail the run when matching upstream commits are found.
+        required: true
+        type: boolean
+        default: true
+  schedule:
+    - cron: "41 14 * * *"
+
+permissions:
+  contents: read
+
+env:
+  UPSTREAM_REPO: https://github.com/rustdesk/rustdesk.git
+  UPSTREAM_BRANCH: master
+  UPSTREAM_BASELINE: c55b1f3359d7753eb1bcf9ef2ef9343ec55b6d1b
+
+jobs:
+  watch:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          submodules: false
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream "$UPSTREAM_REPO" || git remote set-url upstream "$UPSTREAM_REPO"
+          git fetch --no-tags --prune --filter=blob:none upstream "$UPSTREAM_BRANCH"
+
+      - name: Check web-relevant upstream commits
+        id: upstream
+        shell: bash
+        env:
+          FAIL_ON_FINDINGS: ${{ github.event_name == 'schedule' || inputs.fail_on_findings }}
+        run: |
+          set -euo pipefail
+
+          upstream_ref="upstream/${UPSTREAM_BRANCH}"
+          upstream_head="$(git rev-parse "$upstream_ref")"
+
+          if ! git merge-base --is-ancestor "$UPSTREAM_BASELINE" "$upstream_ref"; then
+            {
+              echo "## Upstream web watch"
+              echo
+              echo "The configured baseline is not an ancestor of \`$upstream_ref\`."
+              echo
+              echo "- Baseline: \`$UPSTREAM_BASELINE\`"
+              echo "- Upstream head: \`$upstream_head\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          watch_paths=(
+            "flutter/web"
+            "flutter/lib/web"
+            "flutter/lib/models/web_model.dart"
+            "flutter/lib/models/platform_model.dart"
+            "flutter/lib/models/input_model.dart"
+            "flutter/lib/models/model.dart"
+            "flutter/lib/models/state_model.dart"
+            "flutter/lib/common.dart"
+            "flutter/lib/common/widgets/login.dart"
+            "flutter/lib/consts.dart"
+            "flutter/pubspec.yaml"
+            "flutter/pubspec.lock"
+            "src/client.rs"
+            "libs/hbb_common"
+            "Cargo.toml"
+          )
+
+          commits="$(
+            git log \
+              --ancestry-path \
+              --date=short \
+              --pretty=format:'- `%h` %ad %s' \
+              "$UPSTREAM_BASELINE..$upstream_ref" \
+              -- "${watch_paths[@]}"
+          )"
+
+          {
+            echo "## Upstream web watch"
+            echo
+            echo "- Baseline: \`$UPSTREAM_BASELINE\`"
+            echo "- Upstream head: \`$upstream_head\`"
+            echo
+            echo "Watched paths:"
+            printf -- "- \`%s\`\n" "${watch_paths[@]}"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ -z "$commits" ]]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No upstream commits touched the watched web-relevant paths." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "Matching upstream commits:"
+            echo
+            echo "$commits"
+            echo
+            echo "Review these commits, cherry-pick or port only the relevant web changes, then update \`UPSTREAM_BASELINE\` to the reviewed upstream head."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$FAIL_ON_FINDINGS" == "true" ]]; then
+            exit 1
+          fi
